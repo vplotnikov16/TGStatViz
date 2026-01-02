@@ -7,3 +7,4 @@ disable =
 max-attributes = 20
 max-line-length = 120
 min-public-methods = 1
+max-locals = 20

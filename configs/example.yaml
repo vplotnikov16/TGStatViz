@@ -5,6 +5,6 @@ defaults:
   style: "dark"
 
 slides:
-  - metric: "metric1"
-    renderer: "renderer1"
+  - metric: "personal.cumulative_messages"
+    renderer: "animated_line_chart"
     duration: 10
