@@ -1,6 +1,7 @@
 [BASIC]
 disable =
     unused-argument,
+    import-outside-toplevel,
 
 [DESIGN]
 max-attributes = 20

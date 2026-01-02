@@ -1,6 +1,5 @@
-project:
-  title: "Пример раскадровки"
-  description: "Проверка базовой загрузки"
+title: "Пример раскадровки"
+description: "Проверка базовой загрузки"
 
 defaults:
   style: "dark"
