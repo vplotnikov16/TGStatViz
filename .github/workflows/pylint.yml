@@ -1,0 +1,23 @@
+name: Pylint
+
+on:
+  - push
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [ "3.10" ]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Установка Python и Poetry
+        uses: ./.github/actions/setup-venv
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Analyze code with pylint
+        run: |
+          poetry run pylint src --rcfile=.pylintrc
