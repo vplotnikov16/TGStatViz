@@ -54,10 +54,9 @@ def _get_system_font() -> str:
 
     if system == "Windows":
         return "Arial"
-    elif system == "Darwin":
+    if system == "Darwin":
         return "Helvetica Neue"
-    else:
-        return "DejaVu Sans"
+    return "DejaVu Sans"
 
 
 def configure_quality(quality: str) -> None:
