@@ -5,7 +5,7 @@
 from pathlib import Path
 from typing import Optional
 
-from manim import config as manim_config
+from manim import config as manim_config, tempconfig
 
 from tgstatviz.adapters.json_loader import JSONExportLoader
 from tgstatviz.domain.models import Chat
@@ -62,53 +62,78 @@ class RenderService:
 
         # Шаг 4: Рендеринг
         print("\nРендеринг сцен Manim...")
+        rendered_videos = self._render_scenes(scenes, output_path)
 
+        if not rendered_videos:
+            print("\nОшибка: ни одна сцена не была успешно отрендерена")
+            return
+
+        # Шаг 5: Финализация
+        if output_path:
+            if len(rendered_videos) == 1:
+                # Одна сцена - просто переименовываем
+                self._finalize_single_video(rendered_videos[0], output_path)
+            else:
+                # Несколько сцен - нужна склейка (TODO: Шаг 6)
+                print(f"\n[TODO] Склейка {len(rendered_videos)} сцен в {output_path}")
+                print(f"Временные файлы сцен: {rendered_videos[0].parent}")
+        else:
+            print("\nРендеринг завершён (выходной путь не указан)")
+
+    @staticmethod
+    def _render_scenes(scenes: list, output_path: Optional[Path]) -> list[Path]:
+        """
+        Рендеринг списка сцен.
+        """
         # Временная директория для отдельных сцен
-        per_scene_dir = None
         if output_path:
             per_scene_dir = output_path.parent / ".tgstatviz_scenes"
             per_scene_dir.mkdir(parents=True, exist_ok=True)
+        else:
+            # Если output_path не указан, используем стандартную директорию Manim
+            per_scene_dir = None
 
         rendered_videos = []
 
         for i, (scene_class, _) in enumerate(scenes, start=1):
             print(f"  Рендеринг сцены {i}/{len(scenes)} ({scene_class.__name__})...")
 
-            # Устанавливаем путь для этой сцены
-            if output_path and per_scene_dir:
-                scene_output = per_scene_dir / f"scene_{i:03d}.mp4"
-                manim_config.output_file = str(scene_output)
-
             try:
-                scene = scene_class()
-                scene.render()
+                if per_scene_dir:
+                    # Устанавливаем путь для этой сцены
+                    scene_output = per_scene_dir / f"scene_{i:03d}.mp4"
 
-                # Сохраняем путь к отрендеренному видео
-                if output_path and per_scene_dir:
-                    rendered_videos.append(scene_output)
+                    # Используем tempconfig для изоляции настроек сцены
+                    with tempconfig({"output_file": str(scene_output)}):
+                        scene = scene_class()
+                        scene.render()
+
+                    if scene_output.exists():
+                        rendered_videos.append(scene_output)
+                else:
+                    # Рендерим в стандартное место Manim
+                    scene = scene_class()
+                    scene.render()
 
             # pylint: disable=broad-exception-caught
             except Exception as e:
                 print(f"\tПредупреждение: не удалось отрендерить сцену {i}: {e}")
                 continue
 
-        # Собираем отрендеренные сцены в одно видео
-        if output_path:
-            if not rendered_videos:
-                print("\nОшибка: ни одна сцена не была успешно отрендерена")
-                return
+        return rendered_videos
 
-            if len(rendered_videos) == 1:
-                # Одна сцена - просто переименовываем
-                if output_path.exists():
-                    output_path.unlink()
-                rendered_videos[0].replace(output_path)
-                print(f"\nВидео сохранено: {output_path}")
-            else:
-                # Несколько сцен - нужна склейка (TODO: Шаг 6)
-                pass
-        else:
-            print("\nРендеринг завершён (выходной путь не указан)")
+    @staticmethod
+    def _finalize_single_video(source: Path, destination: Path) -> None:
+        """
+        Переместить единственное видео в финальную директорию.
+        """
+        if destination.exists():
+            destination.unlink()
+
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        source.replace(destination)
+
+        print(f"\nВидео сохранено: {destination}")
 
     @staticmethod
     def _load_chat(export_dir: Path) -> Chat:
