@@ -1,7 +1,8 @@
 """
-TODO: докстринг модуля
+Метрика: накопительное количество сообщений по дням
 """
 from collections import defaultdict
+from datetime import datetime, date
 
 from tgstatviz.domain.metrics.base import Metric, MetricResult
 from tgstatviz.domain.metrics.registry import register_metric
@@ -11,7 +12,10 @@ from tgstatviz.domain.models import Chat
 @register_metric
 class CumulativeMessagesMetric(Metric):
     """
-    TODO: докстринг класса
+    Вычисление накопительного количества сообщений по дням.
+
+    Для каждого дня подсчитывает, сколько всего сообщений было написано
+    с начала истории чата до этого дня включительно
     """
 
     @property
@@ -23,43 +27,58 @@ class CumulativeMessagesMetric(Metric):
         return "Накопительное количество сообщений"
 
     def compute(self, chat: Chat, **params) -> MetricResult:
+        """
+        Вычисление метрики
+        """
+        # Подсчёт сообщений по дням
+        messages_by_day = defaultdict(int)
 
-        # Собираем сообщения по датам
-        dates_counts = defaultdict(int)
-        for msg in chat.messages:
-            date = msg.date.date()
-            dates_counts[date] += 1
+        for message in chat.messages:
+            if message.date:
+                # Приводим к дате (без времени)
+                msg_date = self._to_date(message.date)
+                messages_by_day[msg_date] += 1
 
-        # Сортируем и накапливаем
-        sorted_dates = sorted(dates_counts.keys())
-        cumulative = 0
-        dates_list, counts_list = [], []
+        if not messages_by_day:
+            # Нет сообщений с датой
+            return MetricResult(
+                metric_id=self.id,
+                metric_title=self.title,
+                data={"dates": [], "counts": []},
+                metadata={}
+            )
 
-        for date in sorted_dates:
-            cumulative += dates_counts[date]
-            dates_list.append(date.isoformat())
-            counts_list.append(cumulative)
+        # Сортируем даты
+        sorted_dates = sorted(messages_by_day.keys())
 
-        # Сглаживаем
-        smooth_window = params.get("smooth_window", 1)
-        if smooth_window > 1:
-            counts_list = self._smooth(counts_list, smooth_window)
+        # Вычисляем накопительную сумму
+        cumulative_count = 0
+        dates = []
+        counts = []
+
+        for msg_date in sorted_dates:
+            cumulative_count += messages_by_day[msg_date]
+            dates.append(msg_date.isoformat())
+            counts.append(cumulative_count)
 
         return MetricResult(
             metric_id=self.id,
             metric_title=self.title,
-            data={"dates": dates_list, "counts": counts_list},
-            metadata={"smooth_window": smooth_window}
+            data={
+                "dates": dates,
+                "counts": counts
+            },
+            metadata={
+                "total_messages": cumulative_count,
+                "first_date": dates[0] if dates else None,
+                "last_date": dates[-1] if dates else None,
+                "days_count": len(dates)
+            }
         )
 
     @staticmethod
-    def _smooth(values: list[int], window: int) -> list[float]:
+    def _to_date(dt: datetime) -> date:
         """
-        Скользящее среднее
+        Преобразование datetime в date.
         """
-        smoothed = []
-        for i in range(len(values)):
-            start = max(0, i - window + 1)
-            window_vals = values[start:i + 1]
-            smoothed.append(sum(window_vals) / len(window_vals))
-        return smoothed
+        return dt.date()
