@@ -20,9 +20,11 @@ slides:
 
   # Слайд 2: Количество сообщений по дням
   - metric: "personal.daily_messages"
-    renderer: "animated_line_chart"
+    renderer: "detailed_line_chart"
     duration: 6
     params:
-      smooth_window: 0
+      smooth_window: 10
       highlight_max: true
       show_projections: true
+      highlight_color: "RED"
+      original_opacity: 0.5

@@ -34,7 +34,7 @@ MIKTEX_BIN_DIR: Optional[Path] = Path(r"C:\dev\tools\miktex\texmfs\install\mikte
 # Базовая директория проекта
 BASE_DIR: Path = Path(__file__).resolve().parent
 # Путь к каталогу экспорта Telegram (должен содержать result.json)
-PATH_TO_EXPORT_DIR: Path = BASE_DIR / "exports" / "ChatExport_2025-12-31"
+PATH_TO_EXPORT_DIR: Path = BASE_DIR / "exports" / "ChatExport_2026-01-03"
 # Путь к YAML-конфигу раскадровки
 PATH_TO_STORYBOARD_YAML: Path = BASE_DIR / "configs" / "example.yaml"
 # Куда сохранить итоговое видео
