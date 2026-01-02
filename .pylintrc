@@ -2,6 +2,9 @@
 disable =
     unused-argument,
     import-outside-toplevel,
+    too-many-locals,
+    too-many-statements,
+    too-many-branches
 
 [DESIGN]
 max-attributes = 20

@@ -20,8 +20,9 @@ class Slide(BaseModel):
     """
     metric: str = Field(..., description="ID метрики")
     renderer: str = Field(..., description="ID рендерера")
-    duration: float = Field(5.0, ge=0.1, description="Длительность слайда в секундах")
-    params: dict[str, Any] = Field(default_factory=dict, description="Параметры метрики")
+    duration: float = Field(5.0, ge=0.0, description="Длительность анимации слайда в секундах")
+    wait_time: float = Field(1.0, ge=0.0, description="Время финальной паузы в секундах (не входит в duration)")
+    params: dict[str, Any] = Field(default_factory=dict, description="Параметры метрики и рендерера")
 
 
 class Defaults(BaseModel):

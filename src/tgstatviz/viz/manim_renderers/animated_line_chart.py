@@ -4,9 +4,9 @@
 from typing import Type
 
 from manim import (
-    Scene, Axes, Create, FadeIn, Text, Line,
-    UP, DOWN, LEFT, TEAL, DEGREES,
-    rate_functions, RIGHT
+    Scene, Axes, Create, FadeIn, Text, Line, Dot,
+    UP, DOWN, LEFT, RIGHT, TEAL, DEGREES,
+    rate_functions, DashedLine, VGroup
 )
 
 from tgstatviz.domain.metrics.base import MetricResult
@@ -22,24 +22,84 @@ class AnimatedLineChartRenderer(Renderer):
     Ожидаемый формат данных:
         - dates: list[str] - даты в формате dd.mm.YYYY
         - counts: list[int|float] - значения для каждой даты
+
+    Опциональные метаданные для выделения максимума:
+        - max_index: int - индекс точки максимума (в оригинальных данных)
+        - max_date: str - дата максимума
+        - max_count: int|float - значение максимума (из оригинальных данных до сглаживания)
+
+    Параметры рендерера (через params в storyboard):
+        - highlight_max: bool - выделить точку максимума (по умолчанию False)
+        - highlight_color: str - цвет точки максимума (по умолчанию "RED")
+        - show_projections: bool - показать проекции к осям (по умолчанию False)
+        - projection_color: str - цвет проекций (по умолчанию цвет точки)
+        - projection_dash_length: float - длина штриха проекции (по умолчанию 0.1)
     """
 
     @property
     def id(self) -> str:
         return "animated_line_chart"
 
-    def render(self, result: MetricResult, duration: float, **params) -> Type[Scene]:
+    def render(
+            self,
+            result: MetricResult,
+            duration: float,
+            wait_time: float = 1.0,
+            **params
+    ) -> Type[Scene]:
         """
         Создание Manim-сцены с анимированным линейным графиком
+
+        Args:
+            result: результат метрики с данными и метаданными
+            duration: длительность анимации в секундах
+            wait_time: время финальной паузы в секундах
+            **params: параметры рендерера
+
+        Returns:
+            Класс Manim-сцены
         """
         dates = result.data.get("dates", [])
         counts = result.data.get("counts", [])
         metric_title = result.metric_title
 
+        # Параметры выделения максимума
+        highlight_max = params.get("highlight_max", False)
+        highlight_color = params.get("highlight_color", "RED")
+        show_projections = params.get("show_projections", False)
+        projection_color = params.get("projection_color", None) or highlight_color
+        projection_dash_length = params.get("projection_dash_length", 0.1)
+
+        # Получаем метаданные о максимуме
+        max_index = result.metadata.get("max_index")
+        max_date = result.metadata.get("max_date")
+        max_count = result.metadata.get("max_count")  # Оригинальное значение!
+
         if not dates or not counts:
             raise ValueError(
                 f"Метрика {result.metric_id} вернула пустые данные для графика"
             )
+
+        # Проверяем, что если запрошено выделение максимума, то есть данные о нём
+        if highlight_max and (max_index is None or max_count is None):
+            raise ValueError(
+                f"Метрика {result.metric_id} не предоставила данные о максимуме (max_index, max_count). "
+                "Либо отключите highlight_max, либо убедитесь, что метрика возвращает эти данные в metadata."
+            )
+
+        # Проверка на пропуск сцены
+        if duration == 0 and wait_time == 0:
+            # Возвращаем пустую сцену, которую пропустим
+            class EmptyScene(Scene):
+                """
+                Пустая сцена
+                """
+                def construct(self):
+                    """
+                    Ничего не делаем
+                    """
+
+            return EmptyScene
 
         # Определяем количество подписей на оси X (максимум 10)
         max_x_labels = min(10, len(dates))
@@ -65,9 +125,7 @@ class AnimatedLineChartRenderer(Renderer):
                     x_length=10,
                     y_length=5,
                     axis_config={
-                        # Отключаем автоподписи
                         "include_numbers": False,
-                        # Отключаем автозасечки
                         "include_ticks": False,
                         "font_size": 20
                     },
@@ -128,24 +186,110 @@ class AnimatedLineChartRenderer(Renderer):
                     stroke_width=3
                 )
 
-                # Анимация
-                self.play(FadeIn(title), run_time=0.5)
-                self.play(
-                    Create(axes),
-                    FadeIn(x_label),
-                    FadeIn(y_label),
-                    *[FadeIn(tick) for tick in x_ticks],
-                    *[FadeIn(label) for label in x_tick_labels],
-                    *[FadeIn(tick) for tick in y_ticks],
-                    *[FadeIn(label) for label in y_tick_labels],
-                    run_time=1
-                )
-                self.play(
-                    Create(graph),
-                    run_time=duration - 2,
-                    # Экспоненциальное ускорение
-                    rate_func=rate_functions.ease_in_quad
-                )
-                self.wait(0.5)
+                # Расчёт времени анимаций
+                if duration == 0:
+                    # Без анимации - всё появляется сразу
+                    title_time = 0
+                    axes_time = 0
+                    graph_time = 0
+                    highlight_time = 0
+                else:
+                    # С анимацией
+                    title_time = 0.5
+                    axes_time = 1.0
+                    highlight_time = 1.0 if highlight_max else 0
+                    graph_time = max(0.1, duration - title_time - axes_time - highlight_time)
+
+                # Анимация заголовка
+                if title_time > 0:
+                    self.play(FadeIn(title), run_time=title_time)
+                else:
+                    self.add(title)
+
+                # Анимация осей и подписей
+                if axes_time > 0:
+                    self.play(
+                        Create(axes),
+                        FadeIn(x_label),
+                        FadeIn(y_label),
+                        *[FadeIn(tick) for tick in x_ticks],
+                        *[FadeIn(label) for label in x_tick_labels],
+                        *[FadeIn(tick) for tick in y_ticks],
+                        *[FadeIn(label) for label in y_tick_labels],
+                        run_time=axes_time
+                    )
+                else:
+                    self.add(axes, x_label, y_label, *x_ticks, *x_tick_labels, *y_ticks, *y_tick_labels)
+
+                # Анимация графика
+                if graph_time > 0:
+                    self.play(
+                        Create(graph),
+                        run_time=graph_time,
+                        rate_func=rate_functions.ease_in_quad
+                    )
+                else:
+                    self.add(graph)
+
+                # Выделение максимума, если включено
+                if highlight_max and max_index is not None and max_count is not None:
+                    # ИСПРАВЛЕНИЕ БАГА: используем max_count из метаданных (оригинальное значение)
+                    # вместо counts[max_index] (которое может быть сглажено)
+                    max_point = axes.c2p(max_index, max_count)
+
+                    # Точка максимума
+                    max_dot = Dot(max_point, color=highlight_color, radius=0.1)
+
+                    # Подпись к точке
+                    max_label = None
+                    if max_date:
+                        label_text = f"{max_date}\n{int(max_count)} сообщ."
+                        max_label = Text(label_text, font_size=20, color=highlight_color)
+                        # Размещаем подпись над точкой
+                        max_label.next_to(max_dot, UP, buff=0.2)
+
+                    # Проекции к осям (пунктирные линии), если включено
+                    projections = VGroup()
+                    if show_projections:
+                        # Вертикальная проекция от точки к оси X
+                        x_proj_start = max_point
+                        x_proj_end = axes.c2p(max_index, 0)
+                        x_projection = DashedLine(
+                            x_proj_start, x_proj_end,
+                            color=projection_color,
+                            dash_length=projection_dash_length,
+                            stroke_width=2
+                        )
+                        projections.add(x_projection)
+
+                        # Горизонтальная проекция от точки к оси Y
+                        y_proj_start = max_point
+                        y_proj_end = axes.c2p(0, max_count)
+                        y_projection = DashedLine(
+                            y_proj_start, y_proj_end,
+                            color=projection_color,
+                            dash_length=projection_dash_length,
+                            stroke_width=2
+                        )
+                        projections.add(y_projection)
+
+                    # Анимация появления максимума и проекций
+                    if highlight_time > 0:
+                        animations = [FadeIn(max_dot)]
+                        if max_label:
+                            animations.append(FadeIn(max_label))
+                        if show_projections and len(projections) > 0:
+                            animations.append(Create(projections))
+                        self.play(*animations, run_time=highlight_time)
+                    else:
+                        self.add(max_dot)
+                        if max_label:
+                            self.add(max_label)
+                        if show_projections and len(projections) > 0:
+                            self.add(projections)
+
+                # Финальная пауза
+                if wait_time > 0:
+                    self.wait(wait_time)
 
         return AnimatedLineScene
