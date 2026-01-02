@@ -12,6 +12,7 @@ from tgstatviz.domain.models import Chat
 from tgstatviz.storyboard.loader import load_storyboard
 from tgstatviz.viz.scene_compiler import SceneCompiler
 from tgstatviz.utils.manim_config import initialize_manim
+from tgstatviz.utils.video_concat import concat_videos, FFmpegNotFoundError, VideoConcatError
 
 
 class RenderService:
@@ -40,7 +41,7 @@ class RenderService:
         initialize_manim(quality=quality, enable_cyrillic=True)
 
         # Шаг 1: Загрузка чата
-        print(f"Загрузка чата из {export_dir}...")
+        print(f"\nЗагрузка чата из {export_dir}...")
         chat = self._load_chat(export_dir)
         self._print_chat_info(chat)
 
@@ -76,9 +77,8 @@ class RenderService:
                 # Одна сцена - просто переименовываем
                 self._finalize_single_video(rendered_videos[0], output_path)
             else:
-                # Несколько сцен - нужна склейка (TODO: Шаг 6)
-                print(f"\n[TODO] Склейка {len(rendered_videos)} сцен в {output_path}")
-                print(f"Временные файлы сцен: {rendered_videos[0].parent}")
+                # Несколько сцен - склеиваем через ffmpeg
+                self._finalize_multiple_videos(rendered_videos, output_path)
         else:
             print("\nРендеринг завершён (выходной путь не указан)")
 
@@ -136,6 +136,29 @@ class RenderService:
         source.replace(destination)
 
         print(f"\nВидео сохранено: {destination}")
+
+    @staticmethod
+    def _finalize_multiple_videos(video_paths: list[Path], output_path: Path) -> None:
+        """
+        Склеить несколько видео в один файл.
+
+        Args:
+            video_paths: Список путей к отрендеренным сценам
+            output_path: Путь к итоговому видеофайлу
+        """
+        print(f"\nСклейка {len(video_paths)} сцен в единое видео...")
+
+        try:
+            concat_videos(video_paths, output_path)
+            print(f"\nВидео сохранено: {output_path}")
+
+        except FFmpegNotFoundError as e:
+            print(f"\nОшибка: {e}")
+            print(f"Отдельные сцены сохранены в: {video_paths[0].parent}")
+
+        except VideoConcatError as e:
+            print(f"\nОшибка склейки: {e}")
+            print(f"Отдельные сцены сохранены в: {video_paths[0].parent}")
 
     @staticmethod
     def _load_chat(export_dir: Path) -> Chat:
