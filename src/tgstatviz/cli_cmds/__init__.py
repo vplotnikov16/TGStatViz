@@ -7,5 +7,5 @@ from .render import RenderCommand
 command_types = [RenderCommand]
 
 mapping = {
-    RenderCommand.name: RenderCommand.execute
+    RenderCommand.get_name(): RenderCommand.execute
 }

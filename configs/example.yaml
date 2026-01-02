@@ -1,0 +1,11 @@
+project:
+  title: "Пример раскадровки"
+  description: "Проверка базовой загрузки"
+
+defaults:
+  style: "dark"
+
+slides:
+  - metric: "metric1"
+    renderer: "renderer1"
+    duration: 10

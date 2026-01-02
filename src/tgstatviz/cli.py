@@ -10,8 +10,7 @@ from tgstatviz.cli_cmds.base import BaseCommand
 
 def main():
     """
-    TODO: докстринг функции
-    :return:
+    Точка входа cli
     """
     parser = ArgumentParser()
 
@@ -19,7 +18,7 @@ def main():
 
     for command_type in command_types:
         command: BaseCommand = command_type()
-        command_parser = subparsers.add_parser(name=command.name, help=command.help)
+        command_parser = subparsers.add_parser(name=command.get_name(), help=command.get_help())
         command.add_arguments(command_parser)
 
     args = parser.parse_args()

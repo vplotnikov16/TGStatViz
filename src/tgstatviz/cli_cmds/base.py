@@ -2,7 +2,7 @@
 TODO: докстринг модуля
 """
 
-from abc import ABC, abstractmethod
+from abc import ABC
 from argparse import ArgumentParser, Namespace
 
 
@@ -11,21 +11,19 @@ class BaseCommand(ABC):
     TODO: докстринг класса
     """
 
-    @abstractmethod
-    @property
-    def name(self) -> str:
+    @staticmethod
+    def get_name() -> str:
         """
-        TODO: докстринг функции
-        :return:
+        Имя команды через геттер для удобства
         """
+        raise NotImplementedError
 
-    @abstractmethod
-    @property
-    def help(self) -> str:
+    @staticmethod
+    def get_help() -> str:
         """
-        TODO: докстринг функции
-        :return:
+        Описание команды через геттер для удобства
         """
+        raise NotImplementedError
 
     @classmethod
     def add_arguments(cls, parser: ArgumentParser):
