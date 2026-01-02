@@ -1,16 +1,17 @@
 """
 Метрика: количество сообщений по дням
 """
-from tgstatviz.domain.metrics.base import Metric, MetricResult
 from tgstatviz.domain.metrics.registry import register_metric
-from tgstatviz.domain.metrics.helpers import group_messages_by_day, smooth_data
-from tgstatviz.domain.models import Chat
+from tgstatviz.domain.metrics.personal.base_time_series import BaseTimeSeriesMetric
 
 
 @register_metric
-class DailyMessagesMetric(Metric):
+class DailyMessagesMetric(BaseTimeSeriesMetric):
     """
-    Вычисление количества сообщений за каждый день
+    Вычисление количества сообщений в каждый день.
+
+    Для каждого дня подсчитывает, сколько сообщений было написано
+    именно в этот день (не накопительно).
     """
 
     @property
@@ -21,62 +22,40 @@ class DailyMessagesMetric(Metric):
     def title(self) -> str:
         return "Количество сообщений по дням"
 
-    def compute(self, chat: Chat, **params) -> MetricResult:
+    def _transform_counts(
+            self,
+            counts: list[int],
+            messages_by_day: dict
+    ) -> list[float]:
         """
-        Вычисление метрики
+        Для дневной метрики преобразование не требуется - возвращаем как есть
         """
-        smooth_window = params.get("smooth_window", 1)
+        return [float(c) for c in counts]
 
-        # Подсчёт сообщений по дням через helper
-        messages_by_day = group_messages_by_day(chat.messages)
-
-        if not messages_by_day:
-            # Нет сообщений с датой
-            return MetricResult(
-                metric_id=self.id,
-                metric_title=self.title,
-                data={"dates": [], "counts": []},
-                metadata={}
-            )
-
-        # Сортируем даты
-        sorted_dates = sorted(messages_by_day.keys())
-
-        # Формируем списки дат и количеств
-        dates = []
-        counts = []
-
-        for msg_date in sorted_dates:
-            dates.append(msg_date.strftime("%d.%m.%Y"))
-            counts.append(messages_by_day[msg_date])
-
-        # Находим день с максимумом ДО сглаживания
-        max_index = counts.index(max(counts)) if counts else None
-        max_count = counts[max_index] if max_index is not None else None
+    def _build_metadata(
+            self,
+            dates: list[str],
+            original_counts: list[float],
+            smoothed_counts: list[float],
+            smooth_window: int
+    ) -> dict:
+        """
+        Метаданные для дневной метрики (включая информацию о максимуме)
+        """
+        # Находим день с максимумом (до сглаживания)
+        max_index = original_counts.index(max(original_counts)) if original_counts else None
+        max_count = original_counts[max_index] if max_index is not None else None
         max_date = dates[max_index] if max_index is not None else None
 
-        # Применяем сглаживание, если smooth > 1
-        original_counts = counts.copy()
-        if smooth_window > 1:
-            counts = smooth_data(counts, window=smooth_window)
-
-        return MetricResult(
-            metric_id=self.id,
-            metric_title=self.title,
-            data={
-                "dates": dates,
-                "counts": counts
-            },
-            metadata={
-                "total_messages": sum(original_counts),
-                "first_date": dates[0] if dates else None,
-                "last_date": dates[-1] if dates else None,
-                "days_count": len(dates),
-                "smooth_window": smooth_window,
-                # Информация о максимуме
-                "max_index": max_index,
-                "max_date": max_date,
-                "max_count": max_count,
-                "avg_messages_per_day": sum(original_counts) / len(original_counts) if original_counts else 0
-            }
-        )
+        return {
+            "total_messages": int(sum(original_counts)),
+            "first_date": dates[0] if dates else None,
+            "last_date": dates[-1] if dates else None,
+            "days_count": len(dates),
+            "smooth_window": smooth_window,
+            # Информация о максимуме
+            "max_index": max_index,
+            "max_date": max_date,
+            "max_count": int(max_count) if max_count is not None else None,
+            "avg_messages_per_day": sum(original_counts) / len(original_counts) if original_counts else 0
+        }
