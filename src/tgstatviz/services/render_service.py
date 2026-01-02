@@ -5,12 +5,13 @@
 from pathlib import Path
 from typing import Optional
 
-from manim import config as manim_config, tempconfig
+from manim import tempconfig
 
 from tgstatviz.adapters.json_loader import JSONExportLoader
 from tgstatviz.domain.models import Chat
 from tgstatviz.storyboard.loader import load_storyboard
 from tgstatviz.viz.scene_compiler import SceneCompiler
+from tgstatviz.utils.manim_config import initialize_manim
 
 
 class RenderService:
@@ -34,6 +35,9 @@ class RenderService:
             output_path: путь к выходному видео (опционально)
             quality: качество рендера (low/medium/high)
         """
+        # Инициализация Manim (качество + кириллица)
+        print(f"Настройка Manim (качество: {quality})...")
+        initialize_manim(quality=quality, enable_cyrillic=True)
 
         # Шаг 1: Загрузка чата
         print(f"Загрузка чата из {export_dir}...")
@@ -47,10 +51,8 @@ class RenderService:
         print(f"Описание: {config.description}")
         print(f"Слайдов: {len(config.slides)}")
 
-        # Шаг 3: Создание сцен
-        print(f"\nСоздание сцен Manim (качество: {quality})...")
-        self._configure_manim_quality(quality)
-
+        # Шаг 3: Компиляция сцен
+        print("\nКомпиляция сцен...")
         compiler = SceneCompiler()
         scenes = compiler.compile(config, chat)
 
@@ -83,7 +85,7 @@ class RenderService:
     @staticmethod
     def _render_scenes(scenes: list, output_path: Optional[Path]) -> list[Path]:
         """
-        Рендеринг списка сцен.
+        Рендеринг списка сцен
         """
         # Временная директория для отдельных сцен
         if output_path:
@@ -161,19 +163,3 @@ class RenderService:
 
         authors = {msg.author.id for msg in chat.messages if msg.author}
         print(f"Авторов: {len(authors)}")
-
-    @staticmethod
-    def _configure_manim_quality(quality: str) -> None:
-        """
-        Настройка качества рендеринга Manim
-        """
-        quality_map = {
-            "low": "low_quality",
-            "medium": "medium_quality",
-            "high": "high_quality",
-        }
-
-        manim_quality = quality_map.get(quality, "low_quality")
-        manim_config.quality = manim_quality
-
-        print(f"Качество Manim: {manim_quality}")
