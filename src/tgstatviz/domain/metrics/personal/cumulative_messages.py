@@ -1,11 +1,9 @@
 """
 Метрика: накопительное количество сообщений по дням
 """
-from collections import defaultdict
-from datetime import datetime, date
-
 from tgstatviz.domain.metrics.base import Metric, MetricResult
 from tgstatviz.domain.metrics.registry import register_metric
+from tgstatviz.domain.metrics.helpers import group_messages_by_day, smooth_data
 from tgstatviz.domain.models import Chat
 
 
@@ -30,16 +28,10 @@ class CumulativeMessagesMetric(Metric):
         """
         Вычисление метрики
         """
-        smooth = params.get("smooth", 1)
+        smooth_window = params.get("smooth_window", 1)
 
-        # Подсчёт сообщений по дням
-        messages_by_day = defaultdict(int)
-
-        for message in chat.messages:
-            if message.date:
-                # Приводим к дате (без времени)
-                msg_date = self._to_date(message.date)
-                messages_by_day[msg_date] += 1
+        # Подсчёт сообщений по дням через helper
+        messages_by_day = group_messages_by_day(chat.messages)
 
         if not messages_by_day:
             # Нет сообщений с датой
@@ -64,8 +56,8 @@ class CumulativeMessagesMetric(Metric):
             counts.append(cumulative_count)
 
         # Применяем сглаживание, если smooth > 1
-        if smooth > 1:
-            counts = self._smooth_data(counts, window=smooth)
+        if smooth_window > 1:
+            counts = smooth_data(counts, window=smooth_window)
 
         return MetricResult(
             metric_id=self.id,
@@ -79,29 +71,6 @@ class CumulativeMessagesMetric(Metric):
                 "first_date": dates[0] if dates else None,
                 "last_date": dates[-1] if dates else None,
                 "days_count": len(dates),
-                "smooth_window": smooth
+                "smooth_window": smooth_window
             }
         )
-
-    @staticmethod
-    def _to_date(dt: datetime) -> date:
-        """
-        Преобразование datetime в date
-        """
-        return dt.date()
-
-    @staticmethod
-    def _smooth_data(data: list[float], window: int) -> list[float]:
-        """
-        Сглаживание данных методом скользящего среднего
-        """
-        if window <= 1 or len(data) < window:
-            return data
-
-        smoothed = []
-        for i in range(len(data)):
-            start = max(0, i - window // 2)
-            end = min(len(data), i + window // 2 + 1)
-            smoothed.append(sum(data[start:end]) / (end - start))
-
-        return smoothed
