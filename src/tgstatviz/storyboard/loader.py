@@ -6,7 +6,7 @@ from pathlib import Path
 import yaml
 from pydantic import ValidationError
 
-from tgstatviz.storyboard.schema import ProjectConfig
+from tgstatviz.storyboard.schema import ProjectConfig, LegacyProjectConfig
 
 
 class StoryboardLoadError(Exception):
@@ -40,7 +40,22 @@ def load_storyboard(path: Path) -> ProjectConfig:
         )
 
     try:
-        config = ProjectConfig.model_validate(data)
+        # Пробуем новый формат (с project-обёрткой)
+        if "project" in data:
+            project_data = data["project"]
+            project_data["defaults"] = data.get("defaults", {})
+            project_data["slides"] = data.get("slides", [])
+            config = ProjectConfig.model_validate(project_data)
+        else:
+            # Старый формат (без project-обёртки)
+            config_legacy = LegacyProjectConfig.model_validate(data)
+            # Преобразуем в новый формат
+            config = ProjectConfig(
+                title=config_legacy.title,
+                description=config_legacy.description,
+                defaults=config_legacy.defaults,
+                slides=config_legacy.slides
+            )
     except ValidationError as e:
         raise StoryboardLoadError(f"Ошибка валидации схемы storyboard:\n{e}") from e
 
