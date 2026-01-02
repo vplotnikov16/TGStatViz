@@ -15,15 +15,26 @@ runs:
       with:
         python-version: ${{ inputs.python-version }}
 
+    - name: Установка системных зависимостей (Cairo/Pango)
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends \
+          pkg-config \
+          libcairo2-dev \
+          libpango1.0-dev \
+          build-essential
+
     - name: Кэширование pip и Poetry
       uses: actions/cache@v4
       with:
         path: |
           ~/.cache/pip
           ~/.cache/pypoetry
-        key: ${{ runner.os }}-poetry-pip-${{ hashFiles('**/pyproject.toml','**/poetry.lock') }}
+        key: ${{ runner.os }}-py${{ inputs.python-version }}-poetry-pip-${{ hashFiles('**/pyproject.toml','**/poetry.lock') }}
         restore-keys: |
-          ${{ runner.os }}-poetry-pip-
+          ${{ runner.os }}-py${{ inputs.python-version }}-poetry-pip-
 
     - name: Установка Poetry и зависимостей проекта
       shell: bash
