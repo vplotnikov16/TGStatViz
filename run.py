@@ -109,7 +109,7 @@ def main() -> None:
     cfg = RenderCommand(
         export_dir=PATH_TO_EXPORT_DIR,
         storyboard_yaml=PATH_TO_STORYBOARD_YAML,
-        quality=QUALITY,
+        quality=QUALITY.HIGH,
         output_file=OUTPUT_FILE,
     )
     # Формирование команды

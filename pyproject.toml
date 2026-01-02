@@ -1,6 +1,6 @@
 [project]
 name = "tgstatviz"
-version = "0.1.0"
+version = "0.1.2"
 description = ""
 authors = [
     { name = "vplotnikov16", email = "vplotnikov16@yandex.ru" }

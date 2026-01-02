@@ -30,6 +30,8 @@ class CumulativeMessagesMetric(Metric):
         """
         Вычисление метрики
         """
+        smooth = params.get("smooth", 1)
+
         # Подсчёт сообщений по дням
         messages_by_day = defaultdict(int)
 
@@ -58,8 +60,12 @@ class CumulativeMessagesMetric(Metric):
 
         for msg_date in sorted_dates:
             cumulative_count += messages_by_day[msg_date]
-            dates.append(msg_date.isoformat())
+            dates.append(msg_date.strftime("%d.%m.%Y"))
             counts.append(cumulative_count)
+
+        # Применяем сглаживание, если smooth > 1
+        if smooth > 1:
+            counts = self._smooth_data(counts, window=smooth)
 
         return MetricResult(
             metric_id=self.id,
@@ -72,13 +78,30 @@ class CumulativeMessagesMetric(Metric):
                 "total_messages": cumulative_count,
                 "first_date": dates[0] if dates else None,
                 "last_date": dates[-1] if dates else None,
-                "days_count": len(dates)
+                "days_count": len(dates),
+                "smooth_window": smooth
             }
         )
 
     @staticmethod
     def _to_date(dt: datetime) -> date:
         """
-        Преобразование datetime в date.
+        Преобразование datetime в date
         """
         return dt.date()
+
+    @staticmethod
+    def _smooth_data(data: list[float], window: int) -> list[float]:
+        """
+        Сглаживание данных методом скользящего среднего
+        """
+        if window <= 1 or len(data) < window:
+            return data
+
+        smoothed = []
+        for i in range(len(data)):
+            start = max(0, i - window // 2)
+            end = min(len(data), i + window // 2 + 1)
+            smoothed.append(sum(data[start:end]) / (end - start))
+
+        return smoothed

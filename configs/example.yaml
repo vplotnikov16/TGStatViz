@@ -14,6 +14,6 @@ slides:
   # Слайд 1: Накопительное количество сообщений по дням
   - metric: "personal.cumulative_messages"
     renderer: "animated_line_chart"
-    duration: 10
+    duration: 6
     params:
-      smooth_window: 7
+      smooth: 7
