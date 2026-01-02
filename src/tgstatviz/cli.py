@@ -4,6 +4,7 @@ TODO: докстринг модуля
 
 from argparse import ArgumentParser
 
+import tgstatviz as _
 from tgstatviz.cli_cmds import command_types, mapping
 from tgstatviz.cli_cmds.base import BaseCommand
 

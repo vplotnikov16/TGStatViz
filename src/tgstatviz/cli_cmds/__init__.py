@@ -1,11 +1,17 @@
 """
-TODO: докстринг класса
+CLI-команды приложения
 """
 
 from .render import RenderCommand
+from .metrics import MetricsCommand
+from .renderers import RenderersCommand
 
-command_types = [RenderCommand]
+command_types = [
+    RenderCommand,
+    MetricsCommand,
+    RenderersCommand,
+]
 
 mapping = {
-    RenderCommand.get_name(): RenderCommand.execute
+    command.get_name(): command.execute for command in command_types
 }

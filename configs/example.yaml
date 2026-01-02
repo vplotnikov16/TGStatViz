@@ -1,11 +1,19 @@
+# Пример конфигурации раскадровки для генерации видео статистики чата
+
 project:
-  title: "Пример раскадровки"
-  description: "Проверка базовой загрузки"
+  title: "Статистика чата: пример раскадровки"
+  description: "Демонстрационная раскадровка с базовыми метриками личного чата"
 
 defaults:
   style: "dark"
+  transition:
+    name: "fade"
+    duration: 0.5
 
 slides:
-  - metric: "metric1"
-    renderer: "renderer1"
+  # Слайд 1: Накопительное количество сообщений по дням
+  - metric: "personal.cumulative_messages"
+    renderer: "animated_line_chart"
     duration: 10
+    params:
+      smooth_window: 7

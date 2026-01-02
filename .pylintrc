@@ -1,4 +1,10 @@
+[BASIC]
+disable =
+    unused-argument,
+    import-outside-toplevel,
+
 [DESIGN]
 max-attributes = 20
 max-line-length = 120
 min-public-methods = 1
+max-locals = 20
