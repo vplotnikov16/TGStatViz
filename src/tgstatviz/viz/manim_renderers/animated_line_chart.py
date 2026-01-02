@@ -21,12 +21,14 @@ class AnimatedLineChartRenderer(Renderer):
 
     Ожидаемый формат данных:
         - dates: list[str] - даты в формате dd.mm.YYYY
-        - counts: list[int|float] - значения для каждой даты
+        - counts: list[int|float] - значения для каждой даты (могут быть сглажены)
 
     Опциональные метаданные для выделения максимума:
         - max_index: int - индекс точки максимума (в оригинальных данных)
         - max_date: str - дата максимума
         - max_count: int|float - значение максимума (из оригинальных данных до сглаживания)
+        - max_original_value: int|float - максимальное значение среди всех оригинальных данных
+        - original_counts: list[int|float] - оригинальные данные до сглаживания
 
     Параметры рендерера (через params в storyboard):
         - highlight_max: bool - выделить точку максимума (по умолчанию False)
@@ -60,7 +62,7 @@ class AnimatedLineChartRenderer(Renderer):
             Класс Manim-сцены
         """
         dates = result.data.get("dates", [])
-        counts = result.data.get("counts", [])
+        counts = result.data.get("counts", [])  # Сглаженные данные
         metric_title = result.metric_title
 
         # Параметры выделения максимума
@@ -73,7 +75,11 @@ class AnimatedLineChartRenderer(Renderer):
         # Получаем метаданные о максимуме
         max_index = result.metadata.get("max_index")
         max_date = result.metadata.get("max_date")
-        max_count = result.metadata.get("max_count")  # Оригинальное значение!
+        max_count = result.metadata.get("max_count")  # Оригинальное значение максимума
+
+        # ВАЖНО: получаем максимальное оригинальное значение для построения оси Y
+        max_original_value = result.metadata.get("max_original_value")
+        original_counts = result.metadata.get("original_counts")
 
         if not dates or not counts:
             raise ValueError(
@@ -106,6 +112,14 @@ class AnimatedLineChartRenderer(Renderer):
         label_indices = [int(i * (len(dates) - 1) / (max_x_labels - 1))
                          for i in range(max_x_labels)] if max_x_labels > 1 else [0]
 
+        # для оси Y используем максимум из оригинальных данных
+        # чтобы точка максимума влезала на график
+        if max_original_value is not None:
+            y_max = max_original_value * 1.1
+        else:
+            # Fallback: если нет оригинальных данных, берём максимум из сглаженных
+            y_max = max(counts) * 1.1
+
         class AnimatedLineScene(Scene):
             """
             Сцена с анимированным линейным графиком
@@ -119,9 +133,10 @@ class AnimatedLineChartRenderer(Renderer):
                 title = Text(metric_title, font_size=36).to_edge(UP, buff=0.5)
 
                 # Оси БЕЗ автоматических засечек и подписей
+                # ИСПОЛЬЗУЕМ y_max из оригинальных данных
                 axes = Axes(
                     x_range=[0, len(dates) - 1, 1],
-                    y_range=[0, max(counts) * 1.1, max(counts) // 5 or 1],
+                    y_range=[0, y_max, y_max // 5 or 1],
                     x_length=10,
                     y_length=5,
                     axis_config={
@@ -177,7 +192,7 @@ class AnimatedLineChartRenderer(Renderer):
                     label.next_to(tick_end, LEFT, buff=0.1)
                     y_tick_labels.append(label)
 
-                # График с бирюзовым цветом
+                # График с бирюзовым цветом (рисуем СГЛАЖЕННЫЕ данные)
                 graph = axes.plot_line_graph(
                     x_values=list(range(len(dates))),
                     y_values=counts,
@@ -233,12 +248,11 @@ class AnimatedLineChartRenderer(Renderer):
 
                 # Выделение максимума, если включено
                 if highlight_max and max_index is not None and max_count is not None:
-                    # ИСПРАВЛЕНИЕ БАГА: используем max_count из метаданных (оригинальное значение)
-                    # вместо counts[max_index] (которое может быть сглажено)
+                    # Координаты точки максимума (используем ОРИГИНАЛЬНОЕ значение)
                     max_point = axes.c2p(max_index, max_count)
 
                     # Точка максимума
-                    max_dot = Dot(max_point, color=highlight_color, radius=0.1)
+                    max_dot = Dot(max_point, color=highlight_color, radius=0.12)
 
                     # Подпись к точке
                     max_label = None

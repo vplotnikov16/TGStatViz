@@ -57,5 +57,8 @@ class DailyMessagesMetric(BaseTimeSeriesMetric):
             "max_index": max_index,
             "max_date": max_date,
             "max_count": int(max_count) if max_count is not None else None,
-            "avg_messages_per_day": sum(original_counts) / len(original_counts) if original_counts else 0
+            "avg_messages_per_day": sum(original_counts) / len(original_counts) if original_counts else 0,
+            # ВАЖНО: сохраняем оригинальные данные для корректного построения осей
+            "original_counts": [int(c) for c in original_counts],
+            "max_original_value": int(max(original_counts)) if original_counts else 0
         }
