@@ -1,6 +1,7 @@
 """
 Конфигурация Manim для поддержки кириллицы и настройка качества
 """
+import platform
 from manim import config as manim_config, TexTemplate, Tex, MathTex
 
 
@@ -25,7 +26,10 @@ def configure_latex_for_cyrillic() -> None:
 
         # Добавляем поддержку системных шрифтов (XeLaTeX) и шрифт с кириллицей
         tex_template.add_to_preamble(r"\usepackage{fontspec}")
-        tex_template.add_to_preamble(r"\setmainfont{DejaVu Sans}")
+
+        # Выбираем шрифт в зависимости от платформы
+        font = _get_system_font()
+        tex_template.add_to_preamble(rf"\setmainfont{{{font}}}")
 
         # Глобально для Tex/MathTex
         Tex.set_default(tex_template=tex_template)
@@ -35,9 +39,25 @@ def configure_latex_for_cyrillic() -> None:
         manim_config.tex_template = tex_template
         manim_config.tex_compiler = "xelatex"
 
+        print(f"LaTeX настроен: XeLaTeX с шрифтом {font}")
+
     # pylint: disable=broad-exception-caught
     except Exception as e:
         print(f"Предупреждение: не удалось настроить LaTeX для кириллицы: {e}")
+
+
+def _get_system_font() -> str:
+    """
+    Получить подходящий системный шрифт с поддержкой кириллицы
+    """
+    system = platform.system()
+
+    if system == "Windows":
+        return "Arial"
+    elif system == "Darwin":
+        return "Helvetica Neue"
+    else:
+        return "DejaVu Sans"
 
 
 def configure_quality(quality: str) -> None:
